@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#5d4037">
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => console.log('App pronta offline'))
+        .catch(err => console.log('Errore SW', err));
+    });
+  }
+</script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lupo Solitario Hub v14</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Georgia', serif; background: #d7ccc8; color: #3e2723; margin: 0; padding: 10px; }
+        .container { max-width: 450px; margin: auto; background: #f5e6ca; border: 3px solid #5d4037; border-radius: 10px; padding: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .box { background: rgba(255, 255, 255, 0.5); border: 1px solid #a1887f; border-radius: 8px; padding: 12px; margin-bottom: 10px; width: 100%; }
+        h1 { font-size: 1.2rem; text-align: center; margin: 0 0 15px 0; text-transform: uppercase; color: #5d4037; border-bottom: 2px solid #5d4037; }
+        h2 { font-size: 0.9rem; color: #5d4037; text-transform: uppercase; border-bottom: 1px solid #5d4037; margin-bottom: 10px; padding-bottom: 3px; text-align: left; }
+        .stat-container { display: flex; justify-content: space-around; align-items: center; }
+        .stat-val { font-size: 2.2rem; font-weight: bold; color: #b71c1c; min-width: 50px; display: inline-block; text-align: center; }
+        .btn-stat { background: #5d4037; color: #fff; border: none; border-radius: 5px; padding: 10px 15px; font-size: 1.2rem; cursor: pointer; }
+        .ramas-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        .art-item { display: flex; align-items: center; background: rgba(255,255,255,0.7); padding: 8px; border-radius: 4px; font-size: 0.75rem; border: 1px solid #d7ccc8; }
+        .art-item input { margin-right: 10px; width: 18px; height: 18px; }
+        .resource-row { display: flex; align-items: center; justify-content: space-between; background: #fdf5e6; padding: 8px; border-radius: 8px; margin-bottom: 5px; border: 1px solid #d7ccc8; }
+        .bonus-msg { font-size: 0.75rem; color: #2e7d32; font-weight: bold; margin-top: 5px; text-align: center; min-height: 1rem; }
+        .combat-table { width: 100%; border-collapse: collapse; margin-top: 5px; }
+        .combat-table td { width: 50%; padding: 5px; }
+        .combat-table label { display: block; font-size: 0.7rem; font-weight: bold; }
+        .combat-log { background: #222; color: #fff; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 0.85rem; margin-top: 10px; min-height: 50px; }
+        .win { color: #4caf50; font-weight: bold; }
+        .dead { color: #f44336; font-weight: bold; }
+        input, select, textarea { width: 100%; border: 1px solid #a1887f; border-radius: 5px; padding: 8px; font-family: inherit; font-size: 1rem; background: #fff; }
+        textarea { height: 60px; resize: none; overflow: hidden; }
+    </style>
+</head>
+<body>
+<div style="text-align: center; margin-bottom: 15px;">
+    <h1>Lupo Solitario</h1>
+    <input type="text" id="nome-file" placeholder="Nome salvataggio (es. Capitolo 1)" 
+           style="width: 80%; font-size: 0.8rem; text-align: center; border: 1px dashed #5d4037; background: rgba(255,255,255,0.3);"
+           onchange="salva()">
+</div>
+
+<div class="container">
+    <h1>Registro di guerra</h1>
+
+    <!-- STATISTICHE -->
+    <div class="box">
+        <div class="stat-container">
+            <div style="text-align:center;"><small>CS</small><br><input type="number" id="cs" value="10" style="width:60px;" onchange="salva()"></div>
+            <div style="text-align:center;">
+                <small>RESISTENZA</small><br>
+                <div style="display:flex; align-items:center;">
+                    <button class="btn-stat" onclick="cambiaEP(-1)">-</button>
+                    <span id="ep-val" class="stat-val">20</span>
+                    <button class="btn-stat" onclick="cambiaEP(1)">+</button>
+                </div>
+            </div>
+        </div>
+        <div id="bonus-active" class="bonus-msg"></div>
+        <button id="btn-guarigione" onclick="cambiaEP(1)" style="display:none; width:100%; margin-top:10px; background:#2e7d32; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold;">USA GUARIGIONE (+1 EP)</button>
+    </div>
+
+    <!-- ARTI RAMAS -->
+    <div class="box">
+        <h2>Arti Ramas</h2>
+        <div class="ramas-grid" id="ramas-list">
+            <label class="art-item"><input type="checkbox" id="mimetismo" onchange="salva()"> Mimetismo</label>
+            <label class="art-item"><input type="checkbox" id="caccia" onchange="salva()"> Caccia</label>
+            <label class="art-item"><input type="checkbox" id="sesto" onchange="salva()"> Sesto Senso</label>
+            <label class="art-item"><input type="checkbox" id="orientamento" onchange="salva()"> Orientamento</label>
+            <label class="art-item"><input type="checkbox" id="guarigione" onchange="salva()"> Guarigione</label>
+            <label class="art-item"><input type="checkbox" id="schermo" onchange="salva()"> Schermo Ps.</label>
+            <label class="art-item"><input type="checkbox" id="attacco" onchange="salva()"> Atk. Psich.</label>
+            <label class="art-item"><input type="checkbox" id="telecinesi" onchange="salva()"> Telecinesi</label>
+            <label class="art-item"><input type="checkbox" id="com_animale" onchange="salva()"> Com. Anim.</label>
+            <label class="art-item"><input type="checkbox" id="maestrale" onchange="salva()"> Maestrale</label>
+        </div>
+    </div>
+
+    <!-- ZAINO -->
+    <div class="box">
+        <h2>Zaino e Risorse</h2>
+        <div class="resource-row">
+            <span>🍞 Pasti: <input type="number" id="pasti-q" value="0" style="width:45px;" onchange="salva()"></span>
+            <button onclick="usaConsumabile('pasti-q', 3)" style="background:#ef6c00; color:white; border:none; padding:6px; border-radius:5px;">MANGIA</button>
+        </div>
+        <div class="resource-row">
+            <span>🧪 Vigorilla: <input type="number" id="vigor-q" value="0" style="width:45px;" onchange="salva()"></span>
+            <button onclick="usaConsumabile('vigor-q', 4)" style="background:#c2185b; color:white; border:none; padding:6px; border-radius:5px;">BEVI</button>
+        </div>
+        <textarea id="zaino" onkeyup="salva()" placeholder="Esempio: Spada, Corda..."oninput="this.style.height = ''; this.style.height = this.scrollHeight + 'px'; salva()"></textarea>
+        <div id="inv-status" style="font-size:0.75rem; margin-top:5px;">Oggetti: 0/8</div>
+        <div style="margin-top:10px;"><small>💰 ORO:</small> <input type="number" id="oro" value="0" style="width:60px;" onchange="salva()"></div>
+    </div>
+
+    <!-- NOTE -->
+    <div class="box">
+        <h2>Note Avventura</h2>
+        <textarea id="dynamic-notes" placeholder="Scrivi qui i progressi..." oninput="this.style.height = ''; this.style.height = this.scrollHeight + 'px'; salva()"></textarea>
+    </div>
+
+    <!-- COMBATTIMENTO -->
+    <div class="box" style="border: 2px solid #b71c1c;">
+        <h2>Combattimento</h2>
+        <select id="arma-attiva" onchange="salva()" style="margin-bottom:10px;">
+            <option value="normale">Arma Comune</option>
+            <option value="spada">Spada (+Maestria)</option>
+            <option value="sommerswerd">Sommerswerd (+8)</option>
+            <option value="nessuna">Disarmato (-4)</option>
+        </select>
+        <table class="combat-table">
+            <tr>
+                <td><label>CS NEMICO</label><input type="number" id="cs-nemico" value="0"></td>
+                <td><label>EP NEMICO</label><input type="number" id="ep-nemico" value="0"></td>
+            </tr>
+        </table>
+        <div style="padding: 5px;"><input type="checkbox" id="is-undead" onchange="salva()" style="width:auto;"> <small>NEMICO NON-MORTO</small></div>
+        <button onclick="risolviRound()" style="width:100%; margin-top:10px; padding:15px; background:#b71c1c; color:white; border:none; font-weight:bold; border-radius:5px; font-size: 1rem; cursor: pointer;">ATTACCA!</button>
+        <div id="log" class="combat-log">In attesa di scontro...</div>
+    </div>
+<!-- SEZIONE GESTIONE DATI -->
+<div class="box" style="background: rgba(0,0,0,0.05); border-color: #5d4037;">
+    <h2>Gestione File</h2>
+    
+    <!-- Pulsante Salva (Scarica) -->
+    <button onclick="esportaDati()" style="width:100%; background: #2e7d32; color:white; border:none; padding:12px; border-radius:5px; margin-bottom:8px; font-size: 1rem; cursor: pointer; font-weight: bold;">💾 SALVA AVVENTURA</button>
+
+    <!-- Pulsante Carica (Scegli file) -->
+    <input type="file" id="file-input" style="display:none" onchange="importaDati(event)">
+    <button onclick="document.getElementById('file-input').click()" style="width:100%; background: #1976d2; color:white; border:none; padding:12px; border-radius:5px; margin-bottom:20px; font-size: 1rem; cursor: pointer; font-weight: bold;">📂 CARICA AVVENTURA</button>
+
+    <!-- Pulsante Reset (Rosso) -->
+    <button onclick="resettaTutto()" style="width:100%; background: #b71c1c; color:white; border:none; padding:12px; border-radius:5px; font-size: 1rem; cursor: pointer; font-weight: bold; text-transform: uppercase;">🔥 Reset Totale</button>
+</div>
+
+<script>
+    // TABELLA RISULTATI UFFICIALE (CRT)
+    // [Danno Nemico, Danno Lupo] per dado 0-9
+    const CRT = {
+        "-11": [[0,0],[0,8],[0,9],[1,8],[2,7],[3,6],[4,5],[5,4],[6,3],[0,0]], // lo zero è l'ultimo [0,0] = morte nemico
+        "-9":  [[0,0],[1,6],[2,5],[3,5],[4,5],[5,4],[6,4],[7,2],[8,1],[0,0]],
+        "-7":  [[0,0],[2,5],[3,5],[4,4],[5,4],[6,3],[7,2],[8,2],[9,1],[0,0]],
+        "-5":  [[0,0],[3,5],[4,4],[5,4],[6,3],[7,2],[8,2],[9,1],[10,0],[0,0]],
+        "-3":  [[0,0],[4,5],[5,4],[6,3],[7,3],[8,2],[9,1],[10,0],[11,0],[0,0]],
+        "-1":  [[0,0],[5,4],[6,3],[7,3],[8,2],[9,1],[10,0],[11,0],[12,0],[0,0]],
+        "0":   [[0,0],[6,4],[7,3],[8,3],[9,2],[10,1],[11,0],[12,0],[13,0],[0,0]],
+        "1":   [[0,0],[7,4],[8,3],[9,3],[10,2],[11,1],[12,0],[13,0],[14,0],[0,0]],
+        "3":   [[0,0],[8,3],[9,3],[10,2],[11,2],[12,1],[14,0],[16,0],[18,0],[0,0]],
+        "5":   [[0,0],[9,3],[10,2],[11,2],[12,2],[14,1],[16,0],[18,0],[20,0],[0,0]],
+        "7":   [[0,0],[10,2],[11,2],[12,2],[14,1],[16,1],[18,0],[20,0],[22,0],[0,0]],
+        "9":   [[0,0],[11,2],[12,2],[14,1],[16,1],[18,0],[20,0],[22,0],[24,0],[0,0]],
+        "11":  [[0,0],[12,0],[14,0],[16,0],[18,0],[20,0],[22,0],[24,0],[26,0],[0,0]]
+    };
+
+    function salva() {
+    const arti = {};
+    document.querySelectorAll('#ramas-list input').forEach(cb => arti[cb.id] = cb.checked);
+    
+    const z = document.getElementById('zaino').value;
+    const count = z.split(',').filter(i => i.trim() !== "").length;
+    
+    // Aggiornamento UI
+    document.getElementById('inv-status').innerText = `Oggetti: ${count}/8`;
+    document.getElementById('inv-status').style.color = count > 8 ? '#b71c1c' : '#3e2723';
+    document.getElementById('bonus-active').innerText = arti.caccia ? "CACCIA ATTIVA: Non consumare pasti!" : "";
+    document.getElementById('btn-guarigione').style.display = arti.guarigione ? 'block' : 'none';
+
+    // Creazione oggetto dati
+    const d = {
+        nomeFile: document.getElementById('nome-file').value, // <-- AGGIUNTO
+        cs: document.getElementById('cs').value, 
+        ep: document.getElementById('ep-val').innerText,
+        pasti: document.getElementById('pasti-q').value, 
+        vigor: document.getElementById('vigor-q').value,
+        oro: document.getElementById('oro').value, 
+        zaino: z, 
+        note: document.getElementById('dynamic-notes').value,
+        arma: document.getElementById('arma-attiva').value, 
+        arti: arti, 
+        isUndead: document.getElementById('is-undead').checked
+    };
+    
+    localStorage.setItem("lupo_v14_save", JSON.stringify(d));
+}
+
+window.onload = function() {
+    const s = JSON.parse(localStorage.getItem("lupo_v14_save") || "{}");
+    if(s.cs) {
+        document.getElementById('nome-file').value = s.nomeFile || ""; // <-- AGGIUNTO
+        document.getElementById('cs').value = s.cs;
+        document.getElementById('ep-val').innerText = s.ep;
+        document.getElementById('pasti-q').value = s.pasti;
+        document.getElementById('vigor-q').value = s.vigor;
+        document.getElementById('oro').value = s.oro;
+        document.getElementById('zaino').value = s.zaino;
+        document.getElementById('dynamic-notes').value = s.note || "";
+        document.getElementById('arma-attiva').value = s.arma;
+        document.getElementById('is-undead').checked = s.isUndead;
+        for(let id in s.arti) if(document.getElementById(id)) document.getElementById(id).checked = s.arti[id];
+    }
+    salva();
+};
+
+
+    function cambiaEP(v) {
+        let el = document.getElementById('ep-val');
+        el.innerText = Math.max(0, parseInt(el.innerText) + v);
+        salva();
+    }
+
+    function usaConsumabile(id, cura) {
+        let q = document.getElementById(id);
+        if(parseInt(q.value) > 0) {
+            q.value = parseInt(q.value) - 1;
+            cambiaEP(cura);
+        } else { alert("Esaurito!"); }
+    }
+
+    function risolviRound() {
+        let csL = parseInt(document.getElementById('cs').value) || 0;
+        const arma = document.getElementById('arma-attiva').value;
+        
+        if(document.getElementById('attacco').checked) csL += 2;
+        if(document.getElementById('maestrale').checked && arma === 'spada') csL += 2;
+        if(arma === 'sommerswerd') csL += 8;
+        if(arma === 'nessuna') csL -= 4;
+
+        let csN = parseInt(document.getElementById('cs-nemico').value) || 0;
+        let epN = parseInt(document.getElementById('ep-nemico').value) || 0;
+        let epL = parseInt(document.getElementById('ep-val').innerText);
+        
+        if(epN <= 0) return alert("Nemico abbattuto!");
+
+        let rdf = csL - csN;
+        let dado = Math.floor(Math.random() * 10); 
+        
+        // Selezione Colonna
+        const soglie = [-11, -9, -7, -5, -3, -1, 0, 1, 3, 5, 7, 9, 11];
+        let colKey = soglie.filter(s => s <= rdf).pop();
+        if (rdf < -11) colKey = -11;
+        if (rdf > 11) colKey = 11;
+
+        // Estrazione Danni [Nemico, Lupo]
+        // Se dado 0 -> Morte istantanea nemico (tranne RdF estremi)
+        let dN, dL;
+        if(dado === 0 && colKey > -11) {
+            dN = 100; dL = 0;
+        } else {
+            dN = CRT[colKey][dado][0];
+            dL = CRT[colKey][dado][1];
+        }
+
+        if(arma === 'sommerswerd' && document.getElementById('is-undead').checked) dN *= 2;
+
+        epL = Math.max(0, epL - dL);
+        epN = Math.max(0, epN - dN);
+        
+        document.getElementById('ep-val').innerText = epL;
+        document.getElementById('ep-nemico').value = epN;
+        
+        let msg = `ESTRATTO: ${dado} (RdF: ${rdf})<br>LUPO: -${dL} EP | NEMICO: -${dN} EP`;
+        if(epL <= 0) msg += `<br><span class="dead">IL SOLE TRAMONTA... Sei morto.</span>`;
+        else if(epN <= 0) msg += `<br><span class="win">VITTORIA! Nemico ucciso.</span>`;
+        
+        document.getElementById('log').innerHTML = msg;
+        salva();
+    }
+
+    
+
+    function resettaTutto() {
+        if(confirm("Vuoi azzerare l'avventura?")) { localStorage.clear(); location.reload(); }
+    }
+    function esportaDati() {
+    const dati = localStorage.getItem("lupo_v14_save");
+    if (!dati) {
+        alert("Nessun dato da salvare trovato!");
+        return;
+    }
+
+    // Legge il nome dal box, se vuoto usa "Salvataggio_Lupo"
+    let nomeCustom = document.getElementById('nome-file').value.trim();
+    if (nomeCustom === "") {
+        nomeCustom = "Salvataggio_Lupo";
+    }
+    
+    // Rimuove caratteri speciali che potrebbero dare errore nel nome file
+    nomeCustom = nomeCustom.replace(/[/\\?%*:|"<>]/g, '-');
+
+    const blob = new Blob([dati], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    
+    a.href = url;
+    a.download = nomeCustom + ".json"; // Usa il nome scelto da te!
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function importaDati(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const contenuto = e.target.result;
+            // Verifica se il file è un JSON valido
+            JSON.parse(contenuto); 
+            
+            // Sovrascrivi il localStorage con i nuovi dati
+            localStorage.setItem("lupo_v14_save", contenuto);
+            
+            // Ricarica la pagina per applicare i dati caricati
+            alert("Salvataggio caricato con successo!");
+            location.reload();
+        } catch (err) {
+            alert("Errore: il file selezionato non è un salvataggio valido.");
+        }
+    };
+    reader.readAsText(file);
+}
+
+</script>
+
+</body>
+</html>
